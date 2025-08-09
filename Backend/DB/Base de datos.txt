@@ -1,0 +1,48 @@
+Base de datos: SoftwareLibre
+
+Scripts
+
+DROP TABLE IF EXISTS public.users; 
+CREATE TABLE users (
+    id SERIAL PRIMARY KEY,
+    username VARCHAR(100) UNIQUE NOT NULL,
+    email VARCHAR(100) UNIQUE NOT NULL,
+    password VARCHAR(255) NOT NULL,
+    two_factor_secret text
+);
+
+
+DROP TABLE IF EXISTS public.schedules; 
+CREATE TABLE schedules (
+    id SERIAL PRIMARY KEY,
+    user_id INT REFERENCES users(id) ON DELETE CASCADE,
+    day_of_week VARCHAR(10) NOT NULL, -- Lunes, Martes, etc.
+    time VARCHAR(10) NOT NULL         -- Hora en formato AM/PM
+);
+
+DROP TABLE IF EXISTS public.queue_posts;
+
+CREATE TABLE public.queue_posts (
+    id SERIAL PRIMARY KEY,
+    user_id INT NOT NULL,
+    social_network VARCHAR(50) NOT NULL,
+    title VARCHAR(255) NOT NULL,
+    content TEXT NOT NULL,
+    status VARCHAR(20) DEFAULT 'en cola',
+    scheduled_time TIMESTAMP NOT NULL,
+    created_at TIMESTAMP DEFAULT NOW(),
+    updated_at TIMESTAMP DEFAULT NOW(),
+	published_at TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+CREATE TABLE mastodon_tokens (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER NOT NULL,
+    token TEXT NOT NULL,
+    created_at TIMESTAMP DEFAULT NOW()
+);
+
+
+
+

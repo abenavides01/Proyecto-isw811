@@ -44,3 +44,39 @@ async function getUserSecret(userId) {
 
 // Rutas para servir archivos HTML
 app.use(express.static(path.join(__dirname)));
+
+// Ruta para registrar un nuevo usuario
+app.post('/register', async (req, res) => {
+  const { username, email, password } = req.body;
+  try {
+    // Cifra la contraseña y guarda el usuario en la base de datos
+    const hashedPassword = await bcrypt.hash(password, 10);
+    const result = await pool.query(
+      'INSERT INTO users (username, email, password) VALUES ($1, $2, $3) RETURNING *',
+      [username, email, hashedPassword]
+    );
+
+    const userId = result.rows[0].id;
+
+    // Genera el secreto 2FA y guarda el secreto en la base de datos para este usuario
+    const secret = speakeasy.generateSecret({ name: "Social Hub Manager" });
+    await saveUserSecret(userId, secret.base32);
+
+    // Genera el código QR
+    const qrCodeUrl = await qrcode.toDataURL(secret.otpauth_url);
+
+    // Envía el código QR al frontend
+    res.status(201).json({
+      message: 'Usuario registrado exitosamente. Escanea el código QR para habilitar 2FA.',
+      qrCodeUrl
+    });
+  } catch (error) {
+    console.error('Error al registrar usuario:', error);
+    res.status(500).json({ error: 'Error al registrar usuario' });
+  }
+});
+
+const PORT = process.env.PORT || 3005;
+app.listen(PORT, () => {
+  console.log(`Servidor ejecutándose en http://localhost:${PORT}`);
+});
