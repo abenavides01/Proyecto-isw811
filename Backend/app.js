@@ -76,6 +76,122 @@ app.post('/register', async (req, res) => {
   }
 });
 
+// Ruta para iniciar sesión
+app.post('/login', async (req, res) => {
+  const { email, password } = req.body;
+  const user = await findUserByEmail(email);
+
+  if (!user || !verifyPassword(password, user.password)) {
+    return res.status(401).json({ error: 'Credenciales incorrectas' });
+  }
+
+  if (!user.two_factor_secret) {
+    const secret = speakeasy.generateSecret({ name: "Social Hub Manager" });
+    await saveUserSecret(user.id, secret.base32);
+
+    const qrCodeUrl = await qrcode.toDataURL(secret.otpauth_url);
+
+    return res.json({
+      require2FA: true,
+      message: 'Configura 2FA escaneando el código QR.',
+      qrCodeUrl,
+    });
+  }
+
+  res.json({
+    require2FA: true,
+    message: 'Ingresa tu código OTP.',
+    userId: user.id,
+    username: user.username,
+  });
+});
+
+
+app.get('/username', async (req, res) => {
+  const { userId } = req.query; // Recibe el userId como parámetro de la consulta
+
+  if (!userId) {
+    return res.status(400).json({ error: 'Falta el userId' });
+  }
+
+  try {
+    const user = await findUserById(userId); // Busca al usuario en la base de datos
+
+    if (!user) {
+      return res.status(404).json({ error: 'Usuario no encontrado' });
+    }
+
+    res.json({ username: user.username });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Error del servidor' });
+  }
+});
+
+// Ruta para verificar el OTP después de iniciar sesión
+app.post('/login/verify-otp', async (req, res) => {
+  const { userId, token } = req.body;
+
+  try {
+    const userSecret = await getUserSecret(userId);
+
+    if (!userSecret) {
+      return res.status(400).json({
+        success: false,
+        message: 'No se encontró el secreto de 2FA para el usuario',
+      });
+    }
+
+    const verified = speakeasy.totp.verify({
+      secret: userSecret,
+      encoding: 'base32',
+      token: token,
+    });
+
+    if (verified) {
+      const sessionToken = generateSessionToken({ id: userId });
+      return res.json({
+        success: true,
+        message: 'Código OTP verificado correctamente.',
+        token: sessionToken,
+      });
+    } else {
+      return res.status(400).json({ success: false, message: 'Código OTP incorrecto' });
+    }
+  } catch (error) {
+    console.error('Error al verificar el OTP:', error);
+    res.status(500).json({ error: 'Error en la verificación de OTP' });
+  }
+});
+
+
+app.get('/api/schedules/:userId', async (req, res) => {
+  const { userId } = req.params;
+
+  if (!userId) {
+    return res.status(400).json({ error: 'El ID del usuario es obligatorio' });
+  }
+
+  try {
+    const userExists = await pool.query('SELECT 1 FROM users WHERE id = $1', [userId]);
+
+    if (userExists.rowCount === 0) {
+      return res.status(404).json({ error: 'Usuario no encontrado' });
+    }
+
+    const result = await pool.query(
+      'SELECT s.*, u.username FROM schedules s JOIN users u ON s.user_id = u.id WHERE s.user_id = $1',
+      [userId]
+    );
+
+    res.json(result.rows);
+  } catch (error) {
+    console.error('Error al obtener horarios:', error);
+    res.status(500).json({ error: 'Error al obtener horarios.' });
+  }
+});
+
+
 const PORT = process.env.PORT || 3005;
 app.listen(PORT, () => {
   console.log(`Servidor ejecutándose en http://localhost:${PORT}`);
