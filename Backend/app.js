@@ -191,6 +191,58 @@ app.get('/api/schedules/:userId', async (req, res) => {
   }
 });
 
+app.post('/api/schedules', async (req, res) => {
+  const { userId, dayOfWeek, time } = req.body;
+
+  if (!userId) {
+    return res.status(400).json({ error: 'El ID del usuario es obligatorio' });
+  }
+
+  try {
+    const userExists = await pool.query('SELECT 1 FROM users WHERE id = $1', [userId]);
+
+    if (userExists.rowCount === 0) {
+      return res.status(404).json({ error: 'Usuario no encontrado' });
+    }
+
+    const result = await pool.query(
+      'INSERT INTO schedules (user_id, day_of_week, time) VALUES ($1, $2, $3) RETURNING *',
+      [userId, dayOfWeek, time]
+    );
+
+    res.status(201).json(result.rows[0]);
+  } catch (error) {
+    console.error('Error al crear horario:', error);
+    res.status(500).json({ error: 'Error al crear horario' });
+  }
+});
+
+
+app.put('/api/schedules/:id', async (req, res) => {
+  const { id } = req.params;
+  const { dayOfWeek, time } = req.body;
+  try {
+    const result = await pool.query(
+      'UPDATE schedules SET day_of_week = $1, time = $2 WHERE id = $3 RETURNING *',
+      [dayOfWeek, time, id]
+    );
+    res.json(result.rows[0]);
+  } catch (error) {
+    console.error('Error al actualizar horario:', error);
+    res.status(500).json({ error: 'Error al actualizar horario.' });
+  }
+});
+
+app.delete('/api/schedules/:id', async (req, res) => {
+  const { id } = req.params;
+  try {
+    await pool.query('DELETE FROM schedules WHERE id = $1', [id]);
+    res.status(204).send();
+  } catch (error) {
+    console.error('Error al eliminar horario:', error);
+    res.status(500).json({ error: 'Error al eliminar horario.' });
+  }
+});
 
 const PORT = process.env.PORT || 3005;
 app.listen(PORT, () => {
