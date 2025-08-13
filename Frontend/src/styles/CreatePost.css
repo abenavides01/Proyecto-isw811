@@ -1,0 +1,71 @@
+/* Contenedor principal del formulario */
+.post-container {
+
+    border-radius: 10px;
+    width: 100%;
+    font-family: Arial, sans-serif;
+    color: white;
+}
+
+/* Encabezado */
+.post-header {
+    margin-bottom: 20px;
+    font-size: 2rem;
+    text-align: center;
+    color: white;
+}
+
+/* Agrupaciones del formulario */
+.post-group {
+    margin-bottom: 20px;
+}
+
+/* Etiquetas */
+.post-label {
+    display: block;
+    margin-bottom: 8px;
+    font-size: 16px;
+    color: white;
+}
+
+/* Campos de entrada */
+.post-input,
+.post-textarea {
+    width: 100%;
+    padding: 10px;
+    font-size: 14px;
+    border: none;
+    border-radius: 5px;
+    background-color: #fff; /* Fondo blanco */
+    color: #6A11CB; /* Texto violeta */
+    outline: none;
+    transition: all 0.3s ease;
+}
+
+.post-input:focus,
+.post-textarea:focus {
+    border: 2px solid #6A11CB;
+    box-shadow: 0 0 4px rgba(106, 17, 203, 0.5); /* Sombra violeta */
+}
+
+/* Área de texto */
+.post-textarea {
+    height: 100px;
+    resize: none; /* Evita redimensionar */
+}
+
+/* Botón */
+.post-button {
+    padding: 10px 20px;
+    background-color: #FF5252; /* Rojo */
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: background-color 0.3s ease;
+}
+
+.post-button:hover {
+    background-color: #D32F2F; /* Rojo más oscuro al pasar */
+}
