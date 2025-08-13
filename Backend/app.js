@@ -317,6 +317,71 @@ app.post('/api/queue-posts', async (req, res) => {
   }
 });
 
+const processQueuePosts = async () => {
+  try {
+    const now = new Date();
+
+    // Obtener publicaciones en cola con tiempo programado <= ahora y que no estén en estado "publicado"
+    const postsToPublish = await pool.query(
+      `SELECT * FROM queue_posts 
+       WHERE status = 'en cola' AND scheduled_time <= $1 
+       ORDER BY scheduled_time ASC`,
+      [now]
+    );
+
+    for (const post of postsToPublish.rows) {
+      try {
+        // Obtener el token del usuario desde la base de datos
+        const userTokenResult = await pool.query(
+          `SELECT token FROM mastodon_tokens WHERE user_id = $1`,
+          [post.user_id]
+        );
+
+        if (userTokenResult.rowCount === 0) {
+          console.error(`No se encontró un token para el usuario ${post.user_id}`);
+          continue;
+        }
+
+        const userToken = userTokenResult.rows[0].token;
+
+        // Publicar en Mastodon utilizando el token
+        const response = await fetch(`${process.env.MASTODON_API_URL}/api/v1/statuses`, {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${userToken}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            status: `${post.title}\n\n${post.content}`, // Combina título y contenido en un solo estado
+          }),
+        });
+
+        if (!response.ok) {
+          const error = await response.json();
+          console.error(`Error al publicar en Mastodon para el post ${post.id}:`, error);
+          continue;
+        }
+
+        console.log(`Post publicado en Mastodon: ${post.title}`);
+
+        // Actualizar estado a "publicado"
+        await pool.query(
+          `UPDATE queue_posts SET status = 'publicado', published_at = NOW() 
+           WHERE id = $1`,
+          [post.id]
+        );
+      } catch (error) {
+        console.error(`Error al procesar el post ${post.id}:`, error);
+      }
+    }
+  } catch (error) {
+    console.error('Error al procesar la cola de publicaciones:', error);
+  }
+};
+
+
+// Ejecutar el procesamiento cada minuto
+setInterval(processQueuePosts, 60000);
 
 const PORT = process.env.PORT || 3005;
 app.listen(PORT, () => {
