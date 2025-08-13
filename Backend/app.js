@@ -244,6 +244,80 @@ app.delete('/api/schedules/:id', async (req, res) => {
   }
 });
 
+app.post('/api/queue-posts', async (req, res) => {
+  const { userId, socialNetwork, title, content } = req.body;
+
+  if (!userId || !socialNetwork || !title || !content) {
+      return res.status(400).json({ error: 'Faltan datos obligatorios' });
+  }
+
+  try {
+      console.log('Datos recibidos:', { userId, socialNetwork, title, content });
+
+      const dayMap = ['D', 'L', 'K', 'M', 'J', 'V', 'S']; // Ajustado a tus valores
+      const now = new Date();
+      const currentDayAbbr = dayMap[now.getDay()];
+      const currentTime = now.toTimeString().split(' ')[0]; // Hora actual en formato HH:mm:ss
+
+      const nextSchedule = await pool.query(
+          `
+          SELECT s.day_of_week, s.time
+          FROM schedules s
+          WHERE s.user_id = $1
+          AND (
+              -- Horarios del día actual que aún no han pasado
+              (s.day_of_week = $2 AND s.time::TIME > $3)
+              OR
+              -- Horarios de días futuros
+              (ARRAY_POSITION(ARRAY['L', 'K', 'M', 'J', 'V', 'S', 'D'], s.day_of_week) > ARRAY_POSITION(ARRAY['L', 'K', 'M', 'J', 'V', 'S', 'D'], $2))
+          )
+          ORDER BY
+              CASE
+                  WHEN s.day_of_week = $2 THEN 0 -- Prioriza horarios del día actual
+                  ELSE 1 -- Después, días futuros
+              END,
+              ARRAY_POSITION(ARRAY['L', 'K', 'M', 'J', 'V', 'S', 'D'], s.day_of_week),
+              s.time::TIME
+          LIMIT 1
+          `,
+          [userId, currentDayAbbr, currentTime]
+      );
+
+      if (nextSchedule.rowCount === 0) {
+          console.log('No hay horarios disponibles');
+          return res.status(404).json({ error: 'No hay horarios disponibles para este usuario.' });
+      }
+
+      const { day_of_week, time } = nextSchedule.rows[0];
+      const nextDate = new Date();
+      const [hour, minute] = time.split(':').map(Number);
+      nextDate.setHours(hour, minute, 0, 0);
+      const currentDayIndex = dayMap.indexOf(currentDayAbbr);
+      const scheduleDayIndex = dayMap.indexOf(day_of_week);
+
+      if (scheduleDayIndex !== currentDayIndex || nextDate <= now) {
+          const daysToAdd = (7 + scheduleDayIndex - currentDayIndex) % 7;
+          nextDate.setDate(nextDate.getDate() + daysToAdd);
+      }
+
+      const result = await pool.query(
+          `
+          INSERT INTO queue_posts (user_id, social_network, title, content, scheduled_time)
+          VALUES ($1, $2, $3, $4, $5)
+          RETURNING *
+          `,
+          [userId, socialNetwork, title, content, nextDate]
+      );
+
+      console.log('Post agregado:', result.rows[0]);
+      res.status(201).json(result.rows[0]);
+  } catch (error) {
+      console.error('Error al agregar post a la cola:', error);
+      res.status(500).json({ error: 'Error al agregar post a la cola' });
+  }
+});
+
+
 const PORT = process.env.PORT || 3005;
 app.listen(PORT, () => {
   console.log(`Servidor ejecutándose en http://localhost:${PORT}`);
