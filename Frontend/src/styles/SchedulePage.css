@@ -1,0 +1,102 @@
+/* Contenedor principal */
+.schedule-container {
+    padding: 20px;
+    text-align: center;
+    font-family: Arial, sans-serif;
+    background-color: #f4f4f9;
+    min-height: 100vh;
+}
+
+/* Título */
+.schedule-container h1 {
+    margin-bottom: 20px;
+    color: #333;
+}
+
+/* Tabla */
+.schedule-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 0 auto;
+    background: white;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.schedule-table th,
+.schedule-table td {
+    border: 1px solid #ddd;
+    padding: 10px;
+    text-align: center;
+    width: 120px; /* Ancho fijo */
+    height: 50px; /* Alto fijo */
+    vertical-align: middle; /* Alineación vertical */
+}
+
+.schedule-table th {
+    background-color: #6A11CB;
+    color: white;
+    font-weight: bold;
+}
+
+/* Botón agregar (+) */
+.schedule-table .add-button {
+    padding: 5px 10px;
+    background-color: #ddd;
+    border: none;
+    border-radius: 50%;
+    cursor: pointer;
+    font-size: 18px;
+    width: 40px;
+    height: 40px;
+    transition: background-color 0.3s ease;
+}
+
+.schedule-table .add-button:hover {
+    background-color: #bbb;
+}
+
+/* Botones generales */
+.schedule-table button {
+    padding: 5px 10px;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: background-color 0.3s ease;
+}
+
+/* Botón confirmar (verde) */
+.schedule-table button.confirm {
+    background-color: #28a745; /* Verde */
+    color: white;
+}
+
+.schedule-table button.confirm:hover {
+    background-color: #218838; /* Verde oscuro */
+}
+
+/* Botón cancelar (rojo) */
+.schedule-table button.cancel {
+    background-color: #dc3545; /* Rojo */
+    color: white;
+}
+
+.schedule-table button.cancel:hover {
+    background-color: #c82333; /* Rojo oscuro */
+}
+
+/* Estilo de celdas ocupadas */
+.time-item {
+    display: inline-block;
+    padding: 5px 10px;
+    background-color: #6A11CB;
+    color: white;
+    border-radius: 5px;
+    cursor: pointer;
+    margin: 2px 0;
+    transition: background-color 0.3s ease;
+}
+
+.time-item:hover {
+    background-color: #4A00E0;
+}

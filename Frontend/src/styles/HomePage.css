@@ -1,0 +1,76 @@
+/* Contenedor principal */
+body {
+    margin: 0;
+    font-family: 'Courier New', 'SF Mono', 'Monaco', 'Inconsolata', monospace;
+    background: linear-gradient(135deg, #6A11CB, #2575FC);
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    color: white;
+}
+
+
+.container-logout {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+}
+
+.container-logout button {
+    padding: 10px 20px;
+    background-color: #FF5252;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: background-color 0.3s ease;
+}
+
+.container-logout button:hover {
+    background-color: #D32F2F;
+}
+
+/* Título */
+h1 {
+    margin-bottom: 30px;
+    font-size: 2.5rem;
+    text-align: center;
+}
+
+/* Contenedor de botones */
+.grid-buttons-container {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 20px;
+    width: 100%;
+    max-width: 500px;
+}
+
+/* Botones */
+.grid-button {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    background-color: #007BFF;
+    color: white;
+    border: none;
+    border-radius: 10px;
+    cursor: pointer;
+    font-size: 16px;
+    height: 150px;
+    transition: all 0.3s ease;
+}
+.button-icon{
+    width: 50px;
+    height: 50px;
+}
+
+.grid-button:hover {
+    background-color: #0056b3;
+    transform: scale(1.05);
+}
