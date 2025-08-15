@@ -1,0 +1,74 @@
+.dashboard-page {
+    font-family: 'Courier New', 'SF Mono', 'Monaco', 'Inconsolata', monospace;
+    padding: 20px;
+    background: #ffffff67;
+    width: 100%;
+    max-width: 620px;
+}
+
+.dashboard-nav ul {
+    list-style-type: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    gap: 15px;
+}
+
+.dashboard-nav li {
+    background: linear-gradient(135deg, #6366f1 0%, #06b6d4 100%);
+    color: white;
+    padding: 10px 15px;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+}
+
+.dashboard-nav li:hover {
+    background-color: #0056b3;
+}
+
+.dashboard-content h2 {
+    color: #333;
+    margin-top: 20px;
+    margin-bottom: 10px;
+}
+
+.dashboard-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 20px;
+    background-color: rgba(255, 255, 255, 0.79);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.dashboard-table th, .dashboard-table td {
+    padding: 12px 15px;
+    text-align: left;
+    border-bottom: 1px solid #ddd;
+}
+
+.dashboard-table th {
+    background: linear-gradient(135deg, #6366f1 0%, #06b6d4 100%);
+    color: rgba(255, 255, 255, 0.79);
+    font-weight: bold;
+    text-transform: uppercase;
+}
+
+.dashboard-table tr:nth-child(even) {
+    background-color: #f9f9f9;
+}
+
+.dashboard-table tr:hover {
+    background-color: #00000048;
+}
+
+.dashboard-table td {
+    color: #333;
+}
+
+.dashboard-table td:first-child {
+    font-weight: bold;
+    color: #007bff;
+}
