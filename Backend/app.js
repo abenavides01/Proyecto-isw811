@@ -379,10 +379,147 @@ const processQueuePosts = async () => {
   }
 };
 
-
 // Ejecutar el procesamiento cada minuto
 setInterval(processQueuePosts, 60000);
 
+app.get('/api/queue-posts/:userId', async (req, res) => {
+  const { userId } = req.params;
+
+  if (!userId) {
+      return res.status(400).json({ error: 'El ID del usuario es obligatorio' });
+  }
+
+  try {
+      // Obtener publicaciones pendientes (estado "en cola")
+      const pendingPosts = await pool.query(
+          `SELECT id, title, content, scheduled_time, social_network FROM queue_posts
+           WHERE user_id = $1 AND status = 'en cola'
+           ORDER BY scheduled_time ASC`,
+          [userId]
+      );
+
+      // Obtener publicaciones publicadas (estado "publicado")
+      const publishedPosts = await pool.query(
+          `SELECT id, title, content, published_at, social_network FROM queue_posts
+           WHERE user_id = $1 AND status = 'publicado'
+           ORDER BY published_at DESC`,
+          [userId]
+      );
+
+      res.json({
+          pending: pendingPosts.rows,
+          published: publishedPosts.rows,
+      });
+  } catch (error) {
+      console.error('Error al obtener publicaciones:', error);
+      res.status(500).json({ error: 'Error al obtener publicaciones.' });
+  }
+});
+
+app.post('/mastodon/post', async (req, res) => {
+  const { title, content, token } = req.body;
+
+  if (!token) {
+    return res.status(400).json({ error: 'Token de autenticación requerido' });
+  }
+
+  try {
+    const response = await fetch(`${process.env.MASTODON_API_URL}/api/v1/statuses`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        status: `${title}\n\n${content}`,
+      }),
+    });
+
+    if (!response.ok) {
+      const error = await response.text();
+      throw new Error(error || 'Error al publicar en Mastodon');
+    }
+
+    const data = await response.json();
+    res.status(200).json({ message: 'Publicado en Mastodon con éxito', data });
+  } catch (error) {
+    console.error('Error al publicar en Mastodon:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post('/mastodon/token', async (req, res) => {
+  const { code } = req.body;
+
+  if (!code) {
+    return res.status(400).json({ error: 'Código de autorización requerido' });
+  }
+
+  try {
+    const response = await fetch(`${process.env.MASTODON_API_URL}/oauth/token`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        client_id: process.env.MASTODON_CLIENT_ID,
+        client_secret: process.env.MASTODON_CLIENT_SECRET,
+        redirect_uri: process.env.MASTODON_REDIRECT_URI,
+        grant_type: 'authorization_code',
+        code,
+      }),
+    });
+
+    if (!response.ok) {
+      const error = await response.text();
+      throw new Error(error || 'Error al obtener el token');
+    }
+
+    const data = await response.json();
+    res.status(200).json({ message: 'Token obtenido con éxito', token: data.access_token });
+  } catch (error) {
+    console.error('Error al obtener el token:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post('/mastodon/save-token', async (req, res) => {
+  const { userId, token } = req.body;
+
+  if (!userId || !token) {
+    return res.status(400).json({ error: 'Faltan datos obligatorios: userId o token' });
+  }
+
+  try {
+    // Verificar si el token ya existe para el usuario
+    const existingToken = await pool.query(
+      'SELECT * FROM mastodon_tokens WHERE user_id = $1',
+      [userId]
+    );
+
+    if (existingToken.rowCount > 0) {
+      // Actualizar el token si ya existe
+      await pool.query(
+        'UPDATE mastodon_tokens SET token = $1, created_at = NOW() WHERE user_id = $2',
+        [token, userId]
+      );
+      return res.status(200).json({ message: 'Token actualizado exitosamente' });
+    }
+
+    // Insertar el token si no existe
+    await pool.query(
+      'INSERT INTO mastodon_tokens (user_id, token) VALUES ($1, $2)',
+      [userId, token]
+    );
+
+    res.status(201).json({ message: 'Token almacenado exitosamente' });
+  } catch (error) {
+    console.error('Error al guardar el token:', error);
+    res.status(500).json({ error: 'Error al guardar el token' });
+  }
+});
+
+// Configuración del servidor
 const PORT = process.env.PORT || 3005;
 app.listen(PORT, () => {
   console.log(`Servidor ejecutándose en http://localhost:${PORT}`);
