@@ -1,0 +1,119 @@
+/* Contenedor principal */
+body {
+    margin: 0;
+    font-family: Arial, sans-serif;
+    background: linear-gradient(135deg, #6A11CB, #2575FC);
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    color: white;
+}
+
+
+.container-back-button {
+    position: absolute;
+    top: 20px;
+    left: 20px;
+}
+
+.container-back-button button {
+    padding: 10px 20px;
+    background-color: #FF5252;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: background-color 0.3s ease;
+}
+
+.container-back-button button:hover {
+    background-color: #D32F2F;
+}
+
+/* Título */
+h1 {
+    margin-bottom: 30px;
+    font-size: 2.5rem;
+    text-align: center;
+}
+
+
+.grid-divs-container {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 20px;
+    width: 100%;
+    max-width: 500px;
+}
+
+/* Botones */
+.grid-div {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    background-color: #007BFF;
+    color: white;
+    border: none;
+    border-radius: 10px;
+    cursor: pointer;
+    font-size: 16px;
+    height: 150px;
+    transition: all 0.3s ease;
+}
+
+.div-icon {
+    width: 50px;
+    height: 50px;
+}
+
+/* Estilo básico del switch */
+.switch {
+    position: relative;
+    display: inline-block;
+    width: 60px;
+    height: 34px;
+}
+
+.switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: #ccc;
+    transition: 0.4s;
+    border-radius: 34px;
+}
+
+.slider:before {
+    position: absolute;
+    content: "";
+    height: 20px;
+    width: 22px;
+    border-radius: 50%;
+    left: 5px;
+    bottom: 6px;
+    background-color: white;
+    transition: 0.4s;
+}
+
+/* Cambiar el color del switch cuando está activado */
+input:checked+.slider {
+    background-color: #2196F3;
+}
+
+input:checked+.slider:before {
+    transform: translateX(26px);
+}
