@@ -1,10 +1,8 @@
-// src/components/LinkedInConnectButton.jsx
 import React from 'react';
 import { startLinkedIn } from '../utils/linkedInApi';
 
 export default function LinkedInConnectButton() {
-  const user = JSON.parse(localStorage.getItem('user')); // adapta a tu auth
-  const userId = user?.id;
+  const userId = JSON.parse(localStorage.getItem('userId'));
 
   const handleConnect = () => {
     if (!userId) {

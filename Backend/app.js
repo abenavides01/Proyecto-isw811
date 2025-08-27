@@ -591,11 +591,8 @@ app.post('/mastodon/save-token', async (req, res) => {
 
 const crypto = require('crypto');
 const OAUTH_STATE_SECRET = process.env.OAUTH_STATE_SECRET;
-const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:3000';
-const LINKEDIN_CLIENT_ID = process.env.LINKEDIN_CLIENT_ID;
-const LINKEDIN_CLIENT_SECRET = process.env.LINKEDIN_CLIENT_SECRET;
-const LINKEDIN_REDIRECT_URI = process.env.LINKEDIN_REDIRECT_URI;
-const LINKEDIN_SCOPE = process.env.LINKEDIN_SCOPE || 'w_member_social openid profile';
+const cookieParser = require('cookie-parser');
+app.use(cookieParser());  // <-- para leer req.cookies
 
 function signState(payload) {
   // payload: { userId, nonce, ts }
@@ -613,6 +610,30 @@ function verifyState(state) {
   if (Date.now() - (payload.ts || 0) > 10 * 60 * 1000) throw new Error('state expired');
   return payload; // { userId, nonce, ts }
 }
+
+// Crea y guarda un state para LinkedIn
+async function createOAuthStateFor(userId) {
+  const state = crypto.randomBytes(24).toString('hex');
+  await pool.query(
+    `INSERT INTO oauth_state (state, user_id, provider, created_at)
+     VALUES ($1, $2, 'linkedin', NOW())`,
+    [state, userId]
+  );
+  return state;
+}
+
+// Lee y elimina el state (lo “consume”)
+// Devuelve el user_id si existía; null si no existe/expiró
+async function consumeOAuthState(state) {
+  const r = await pool.query(
+    `DELETE FROM oauth_state
+       WHERE state = $1 AND provider = 'linkedin'
+       RETURNING user_id`,
+    [state]
+  );
+  return r.rowCount ? r.rows[0].user_id : null;
+}
+
 
 async function saveLinkedinToken(userId, accessToken, expiresIn, personUrn) {
   const expiresAt = new Date(Date.now() + (expiresIn * 1000));
@@ -635,69 +656,92 @@ async function getLinkedinCreds(userId) {
 //redirige a LinkedIn 
 app.get('/api/linkedin/start', (req, res) => {
   const { userId } = req.query;
-  if (!userId) return res.status(400).send('Missing userId');
+  if (!userId) return res.status(400).send('Falta userId');
 
-  const state = createOAuthStateFor(userId); // lo que estés usando (random + firma)
-  const authUrl = new URL('https://www.linkedin.com/oauth/v2/authorization');
-  authUrl.search = new URLSearchParams({
+  const state = crypto.randomBytes(16).toString('hex');
+
+  // Cookies para validar en el callback
+  res.cookie('li_state', state, { httpOnly: true, sameSite: 'lax' });
+  res.cookie('li_user', userId, { httpOnly: true, sameSite: 'lax' });
+
+  const params = new URLSearchParams({
     response_type: 'code',
     client_id: process.env.LINKEDIN_CLIENT_ID,
-    redirect_uri: process.env.LINKEDIN_REDIRECT_URI,
-    scope: 'w_member_social r_liteprofile', // o lo que tengas autorizado
-    state,
-  }).toString();
+    redirect_uri: process.env.LINKEDIN_REDIRECT_URI, // Debe coincidir EXACTO con el portal de LinkedIn
+    scope: process.env.LINKEDIN_SCOPE,               // ej: "w_member_social openid email"
+    state
+  });
 
-  return res.redirect(authUrl.toString());
+  const authUrl = `https://www.linkedin.com/oauth/v2/authorization?${params.toString()}`;
+  console.log('[LinkedIn] AUTH URL =>', authUrl);
+  res.redirect(authUrl);
 });
+
 
 // CALLBACK: troca code->token, guarda en BD y redirige al FE
 app.get('/linkedin/callback', async (req, res) => {
   try {
     const { code, state, error, error_description } = req.query;
-    if (error) return res.status(400).send(`LinkedIn error:\n${error_description || error}`);
 
-    const { userId } = verifyState(state);
+    if (error) {
+      console.error('[LinkedIn] callback error:', error, error_description);
+      return res.status(400).send(`LinkedIn error: ${error}: ${error_description}`);
+    }
 
-    // Intercambiar code por token
+    // Validar state con cookie
+    const cookieState = req.cookies.li_state;
+    const userId = req.cookies.li_user;
+    if (!cookieState || state !== cookieState) {
+      console.error('[LinkedIn] state inválido', { state, cookieState });
+      return res.status(400).send('State inválido');
+    }
+    if (!userId) {
+      console.error('[LinkedIn] Falta cookie li_user');
+      return res.status(400).send('Falta userId en cookie');
+    }
+
+    // Intercambiar code -> access_token
+    const tokenBody = new URLSearchParams({
+      grant_type: 'authorization_code',
+      code,
+      redirect_uri: process.env.LINKEDIN_REDIRECT_URI,
+      client_id: process.env.LINKEDIN_CLIENT_ID,
+      client_secret: process.env.LINKEDIN_CLIENT_SECRET,
+    });
+
     const tokenRes = await fetch('https://www.linkedin.com/oauth/v2/accessToken', {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: new URLSearchParams({
-        grant_type: 'authorization_code',
-        code,
-        redirect_uri: LINKEDIN_REDIRECT_URI,
-        client_id: LINKEDIN_CLIENT_ID,
-        client_secret: LINKEDIN_CLIENT_SECRET
-      })
+      body: tokenBody.toString(),
     });
-    const tokenData = await tokenRes.json();
+
     if (!tokenRes.ok) {
-      return res.status(500).send(`Token error:\n${JSON.stringify(tokenData, null, 2)}`);
+      const txt = await tokenRes.text();
+      console.error('[LinkedIn] token exchange failed:', tokenRes.status, txt);
+      return res.status(500).send(`Fallo al intercambiar token: ${tokenRes.status}\n${txt}`);
     }
-    const { access_token, expires_in } = tokenData;
 
-    // Obtener el sub (ID del miembro) con OIDC
-    const meRes = await fetch('https://api.linkedin.com/v2/userinfo', {
-      headers: { Authorization: `Bearer ${access_token}` }
-    });
-    const me = await meRes.json();
-    if (!meRes.ok || !me.sub) {
-      return res.status(500).send(`userinfo error:\n${JSON.stringify(me, null, 2)}`);
-    }
-    const personUrn = `urn:li:person:${me.sub}`;
+    const tokenData = await tokenRes.json();
+    console.log('[LinkedIn] tokenData:', tokenData);
 
-    // Guardar en BD
-    await saveLinkedinToken(userId, access_token, expires_in, personUrn);
+    // Guarda el token
+    await pool.query(
+      `INSERT INTO linkedin_tokens (user_id, access_token, expires_in)
+       VALUES ($1, $2, $3)`,
+      [userId, tokenData.access_token, tokenData.expires_in ?? null]
+    );
 
-    // Redirigir al FE con estado simple (sin exponer tokens)
-    const done = new URL(`${FRONTEND_URL}/account-config`);
-    done.searchParams.set('linkedin', 'ok');
-    res.redirect(done.toString());
+    // Limpia cookies
+    res.clearCookie('li_state');
+    res.clearCookie('li_user');
+
+    // Puedes cerrar y volver al front
+    res.send('¡Listo! Conectado con LinkedIn. Ya puedes cerrar esta pestaña.');
   } catch (e) {
-    console.error(e);
-    res.status(400).send(`LinkedIn callback error:\n${e.message}`);
+    console.error('[LinkedIn] Error en callback:', e);
+    res.status(500).send('Error en callback de LinkedIn');
   }
-});
+}); 
 
 // Estado de conexión para el frontend 
 app.get('/api/linkedin/status', async (req, res) => {
