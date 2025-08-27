@@ -24,16 +24,16 @@ const HomePage = () => {
                 <button onClick={handleClickLogout}>Cerrar Sesión</button>
             </div>
             <h1>
-                Bienvenido, {sessionStorage.getItem("username")}
+                Bienvenid@, {sessionStorage.getItem("username")}
             </h1>
             <div className="grid-buttons-container">
                 <button onClick={handleClickDashboard} className="grid-button">
                     <img src="/images/tablero.png" alt="Dashboard" className="button-icon" />
-                    Dashboard
+                    Publicaciones
                 </button>
                 <button onClick={handleClickAccountConfig} className="grid-button">
                     <img src="/images/configuraciones.png" alt="Settings" className="button-icon" />
-                    Configuración cuentas
+                    Conecta Tus Cuentas
                 </button>
             </div>
         </div>

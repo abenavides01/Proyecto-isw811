@@ -2,8 +2,8 @@
 .schedule-container {
     padding: 20px;
     text-align: center;
-    font-family: Arial, sans-serif;
-    background-color: #f4f4f9;
+    font-family: "Lucida Handwriting", Times, serif;
+    background-color: #ffffff36;
     min-height: 100vh;
 }
 
@@ -18,7 +18,7 @@
     width: 100%;
     border-collapse: collapse;
     margin: 0 auto;
-    background: white;
+    background: #ffffff72;
     box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
 }
 
@@ -33,7 +33,7 @@
 }
 
 .schedule-table th {
-    background-color: #6A11CB;
+    background-color: #11a0cba1;
     color: white;
     font-weight: bold;
 }
@@ -89,7 +89,7 @@
 .time-item {
     display: inline-block;
     padding: 5px 10px;
-    background-color: #6A11CB;
+    background-color: #11a0cbc2;
     color: white;
     border-radius: 5px;
     cursor: pointer;

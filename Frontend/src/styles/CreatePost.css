@@ -3,7 +3,7 @@
 
     border-radius: 10px;
     width: 100%;
-    font-family: Arial, sans-serif;
+    font-family: "Lucida Handwriting", Times, serif;
     color: white;
 }
 
@@ -13,6 +13,10 @@
     font-size: 2rem;
     text-align: center;
     color: white;
+}
+
+.post-form {
+    width: 85%;
 }
 
 /* Agrupaciones del formulario */
@@ -31,7 +35,7 @@
 /* Campos de entrada */
 .post-input,
 .post-textarea {
-    width: 100%;
+    width: 93%;
     padding: 10px;
     font-size: 14px;
     border: none;

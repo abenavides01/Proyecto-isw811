@@ -1,8 +1,8 @@
 /* Contenedor principal */
 body {
     margin: 0;
-    font-family: 'Courier New', 'SF Mono', 'Monaco', 'Inconsolata', monospace;
-    background: linear-gradient(135deg, #6A11CB, #2575FC);
+    font-family: "Lucida Handwriting", Times, serif;
+    background: linear-gradient(135deg, #5A51AA 10%, #4EC5E6 50%, #F0D686 100%);
     height: 100vh;
     display: flex;
     flex-direction: column;

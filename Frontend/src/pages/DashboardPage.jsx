@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import '../styles/DashboardPage.css';
+import BackButton from "../components/BackButton";
 
 const DashboardPage = () => {
     const navigate = useNavigate();
@@ -39,56 +40,65 @@ const DashboardPage = () => {
     };
 
     return (
-        <div className="dashboard-page">
-            <nav className="dashboard-nav">
-                <ul>
-                    <li onClick={handleCreatePost}>Crea una publicación</li>
-                    <li onClick={handleSchedule}>Horarios de publicación</li>
-                </ul>
-            </nav>
-            <div className="dashboard-content">
-                <h2>Publicaciones Pendientes</h2>
-                <table className="dashboard-table">
-                    <thead>
-                        <tr>
-                            <th>Red Social</th>
-                            <th>Título</th>
-                            <th>Contenido</th>
-                            <th>Programado Para</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {queuePosts.map(post => (
-                            <tr key={post.id}>
-                                <td>{post.social_network}</td>
-                                <td>{post.title}</td>
-                                <td>{post.content}</td>
-                                <td>{new Date(post.scheduled_time).toLocaleString()}</td>
+        <div>
+            <div className="container-back-button">
+                <BackButton 
+                    label="Regresar" 
+                    className="custom-back-btn" 
+                    fallbackPath="/home"
+                />
+            </div>
+            <div className="dashboard-page">
+                <nav className="dashboard-nav">
+                    <ul>
+                        <li onClick={handleCreatePost}>Crea una publicación</li>
+                        <li onClick={handleSchedule}>Horarios de publicación</li>
+                    </ul>
+                </nav>
+                <div className="dashboard-content">
+                    <h2>Publicaciones Pendientes</h2>
+                    <table className="dashboard-table">
+                        <thead>
+                            <tr>
+                                <th>Red Social</th>
+                                <th>Título</th>
+                                <th>Contenido</th>
+                                <th>Programado Para</th>
                             </tr>
-                        ))}
-                    </tbody>
-                </table>
-                <h2>Historial de Publicaciones</h2>
-                <table className="dashboard-table">
-                    <thead>
-                        <tr>
-                            <th>Red Social</th>
-                            <th>Título</th>
-                            <th>Contenido</th>
-                            <th>Publicado El</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {publishedPosts.map(post => (
-                            <tr key={post.id}>
-                                <td>{post.social_network}</td>
-                                <td>{post.title}</td>
-                                <td>{post.content}</td>
-                                <td>{new Date(post.published_at).toLocaleString()}</td>
+                        </thead>
+                        <tbody>
+                            {queuePosts.map(post => (
+                                <tr key={post.id}>
+                                    <td>{post.social_network}</td>
+                                    <td>{post.title}</td>
+                                    <td>{post.content}</td>
+                                    <td>{new Date(post.scheduled_time).toLocaleString()}</td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                    <h2>Historial de Publicaciones</h2>
+                    <table className="dashboard-table">
+                        <thead>
+                            <tr>
+                                <th>Red Social</th>
+                                <th>Título</th>
+                                <th>Contenido</th>
+                                <th>Publicado El</th>
                             </tr>
-                        ))}
-                    </tbody>
-                </table>
+                        </thead>
+                        <tbody>
+                            {publishedPosts.map(post => (
+                                <tr key={post.id}>
+                                    <td>{post.social_network}</td>
+                                    <td>{post.title}</td>
+                                    <td>{post.content}</td>
+                                    <td>{new Date(post.published_at).toLocaleString()}</td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
             </div>
         </div>
     );

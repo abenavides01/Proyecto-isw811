@@ -1,7 +1,7 @@
 /* Contenedor principal */
 .create-post-page {
     margin: 0;
-    font-family: 'Courier New', 'SF Mono', 'Monaco', 'Inconsolata', monospace;
+    font-family: "Lucida Handwriting", Times, serif;
     height: 100vh;
     display: flex;
     flex-direction: column;
@@ -13,8 +13,8 @@
 
 /* Contenedor del formulario */
 .form-container {
-    background: #ffffff67;
-    padding: 20px;
+    background: linear-gradient(135deg, #5A51AA 10%, #4EC5E6 50%, #F0D686 100%);
+    padding: 30px;
     border-radius: 10px;
     width: 460px;
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);

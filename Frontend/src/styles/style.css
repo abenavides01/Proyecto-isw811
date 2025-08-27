@@ -1,9 +1,9 @@
 /* General */
 body {
-    font-family: 'Courier New', 'SF Mono', 'Monaco', 'Inconsolata', monospace;
+    font-family: "Lucida Handwriting", Times, serif;
     margin: 0;
     padding: 0;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: linear-gradient(135deg, #ffffff 00%, #828888 100%);
     display: flex;
     justify-content: center;
     align-items: center;
@@ -16,7 +16,7 @@ body {
     width: 100%;
     max-width: 420px;
     perspective: 1000px;
-    background: #ffffff72;
+    background: linear-gradient(135deg, #5A51AA 00%, #4EC5E6 40%, #F0D686 100%);
     border-radius: 20px;
     padding: 30px;
     box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
@@ -39,10 +39,10 @@ body {
   
   /* Inputs */
   input {
-    background: rgba(255, 255, 255, 0.1);
+    background: rgba(255, 255, 255, 0.37);
     border: 1px solid rgba(255, 255, 255, 0.2);
     border-radius: 12px;
-    padding: 16px 24px;
+    padding: 16px 10px;
     color: white;
     font-size: 16px;
     font-weight: 400;
@@ -61,8 +61,9 @@ body {
   /* Botones */
   button {
     width: 100%;
+    font-family: "Lucida Handwriting", Times, serif;
     padding: 16px 24px;
-    background: linear-gradient(135deg, #6366f1 0%, #06b6d4 100%);
+    background: linear-gradient(135deg, #5A51AA 10%, #4EC5E6 50%, #F0D686 100%);
     color: white;
     border: none;
     border-radius: 12px;

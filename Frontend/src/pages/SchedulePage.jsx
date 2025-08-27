@@ -100,7 +100,7 @@ const SchedulePage = () => {
 
   return (
     <div className="schedule-container">
-      <h1>Horarios de publicación</h1>
+      <h1>Agrega el Horario</h1>
       <table className="schedule-table">
         <thead>
           <tr>

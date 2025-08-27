@@ -1,8 +1,8 @@
 /* Contenedor principal */
 body {
     margin: 0;
-    font-family: Arial, sans-serif;
-    background: linear-gradient(135deg, #6A11CB, #2575FC);
+    font-family: "Lucida Handwriting", Times, serif;
+    background: linear-gradient(135deg, #ffffff 00%, #828888 100%);
     height: 100vh;
     display: flex;
     flex-direction: column;
@@ -56,7 +56,7 @@ h1 {
     align-items: center;
     justify-content: center;
     padding: 20px;
-    background-color: #007BFF;
+    background: linear-gradient(135deg, #5A51AA 10%, #4EC5E6 50%, #F0D686 100%);
     color: white;
     border: none;
     border-radius: 10px;

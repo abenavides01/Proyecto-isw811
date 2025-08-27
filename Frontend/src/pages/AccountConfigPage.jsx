@@ -28,7 +28,7 @@ const AccountConfigPage = () => {
             <h1>Configuración de cuentas</h1>
             <div className="grid-divs-container">
                 <div className="grid-div">
-                    <img src="/images/mastodon.png" alt="Mastodon" className="div-icon" />
+                    <img src="/images/mastodon.ico" alt="Mastodon" className="div-icon" />
                     Mastodon
                     <label className="switch">
                         <input type="checkbox" onChange={handleCheckboxChange} />
@@ -36,7 +36,7 @@ const AccountConfigPage = () => {
                     </label>
                 </div>
                 <div className="grid-div">
-                    <img src="/images/linkedin.png" alt="Linkedin" className="div-icon" />
+                    <img src="/images/linkedin.ico" alt="Linkedin" className="div-icon" />
                     Linkedin
                     <label className="switch">
                         <input type="checkbox" onChange={handleCheckboxChange} />
