@@ -41,6 +41,43 @@ const CreateScheduledPost = ({ onReset }) => {
         setSelectedSchedule(schedule);
     };
 
+    // Inserta el programado en la tabla queue_posts (status='en cola')
+    const enqueueProgrammed = async (scheduleTime) => {
+        const userId = sessionStorage.getItem('userId');
+        if (!userId) throw new Error('No se encontró userId en sesión');
+
+        // Como este componente publica a Mastodon, usamos 'mastodon' (igual que ahora)
+        const res = await fetch('/api/queue-posts', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                userId,
+                socialNetwork: 'mastodon',
+                title,
+                content,
+                scheduledTime: scheduleTime.toISOString(), // <-- clave: mandamos la fecha/hora programada
+            }),
+        });
+
+        if (!res.ok) {
+            const txt = await res.text().catch(() => '');
+            throw new Error(txt || 'No se pudo insertar el programado en la cola');
+        }
+        return res.json(); // debe devolver el registro creado con su id
+    };
+
+    // Marca como 'publicado' el registro en queue_posts cuando ya se publicó
+    const markPublished = async (queuePostId) => {
+        if (!queuePostId) return; // por si acaso
+        const res = await fetch(`/api/queue-posts/${queuePostId}/publish`, {
+            method: 'PATCH',
+        });
+        if (!res.ok) {
+            const txt = await res.text().catch(() => '');
+            console.warn('No se pudo marcar publicado:', txt);
+        }
+    };
+
     const handleSubmit = async (e) => {
         e.preventDefault();
 
@@ -62,13 +99,19 @@ const CreateScheduledPost = ({ onReset }) => {
         const delay = scheduleTime - now; // Diferencia de tiempo en milisegundos
 
         try {
+            // 1) Inserta la publicación programada en la cola para que aparezca en "Pendientes"
+            const queued = await enqueueProgrammed(scheduleTime); // <--- NUEVO
+            const queuedId = queued?.id;
+
             if (delay > 0) {
                 alert(`La publicación se programo para las ${selectedSchedule.time}.`);
                 setTimeout(async () => {
                     await publishPost();
+                    await markPublished(queuedId); // <--- marcar como publicado
                 }, delay);
             } else {
                 await publishPost();
+                await markPublished(queuedId);    // y marcamos publicado
             }
 
             // Limpiar el estado interno del formulario
