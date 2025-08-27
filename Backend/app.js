@@ -321,55 +321,123 @@ const processQueuePosts = async () => {
   try {
     const now = new Date();
 
-    // Obtener publicaciones en cola con tiempo programado <= ahora y que no estén en estado "publicado"
+    // busca posts en cola que ya deben publicarse
     const postsToPublish = await pool.query(
-      `SELECT * FROM queue_posts 
-       WHERE status = 'en cola' AND scheduled_time <= $1 
-       ORDER BY scheduled_time ASC`,
+      `SELECT *
+         FROM queue_posts
+        WHERE status = 'en cola'
+          AND scheduled_time <= $1
+        ORDER BY scheduled_time ASC`,
       [now]
     );
 
     for (const post of postsToPublish.rows) {
       try {
-        // Obtener el token del usuario desde la base de datos
-        const userTokenResult = await pool.query(
-          `SELECT token FROM mastodon_tokens WHERE user_id = $1`,
-          [post.user_id]
-        );
+        // Back-compat: si no hay columna/valor, asumimos mastodon
+        const network = (post.social_network || 'mastodon').toLowerCase();
 
-        if (userTokenResult.rowCount === 0) {
-          console.error(`No se encontró un token para el usuario ${post.user_id}`);
+        if (network === 'mastodon') {
+          const userTokenResult = await pool.query(
+            `SELECT token FROM mastodon_tokens WHERE user_id = $1`,
+            [post.user_id]
+          );
+
+          if (userTokenResult.rowCount === 0) {
+            console.error(`No se encontró un token de Mastodon para el usuario ${post.user_id}`);
+            continue;
+          }
+
+          const userToken = userTokenResult.rows[0].token;
+
+          const response = await fetch(`${process.env.MASTODON_API_URL}/api/v1/statuses`, {
+            method: 'POST',
+            headers: {
+              Authorization: `Bearer ${userToken}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              status: `${post.title}\n\n${post.content}`,
+            }),
+          });
+
+          if (!response.ok) {
+            const errText = await response.text().catch(() => '');
+            console.error(`Error al publicar en Mastodon para el post ${post.id}:`, errText);
+            continue;
+          }
+
+          console.log(`Post ${post.id} publicado en Mastodon`);
+
+        } else if (network === 'linkedin') {
+          // Obtener access_token más reciente del usuario
+          const tok = await pool.query(
+            `SELECT access_token
+               FROM linkedin_tokens
+              WHERE user_id = $1
+              ORDER BY created_at DESC
+              LIMIT 1`,
+            [post.user_id]
+          );
+          if (tok.rowCount === 0) {
+            console.error(`No se encontró token de LinkedIn para el usuario ${post.user_id}`);
+            continue;
+          }
+          const accessToken = tok.rows[0].access_token;
+
+          // Obtener el member id (URN autor)
+          const meRes = await fetch('https://api.linkedin.com/v2/me', {
+            headers: { Authorization: `Bearer ${accessToken}` },
+          });
+          if (!meRes.ok) {
+            const errText = await meRes.text().catch(() => '');
+            console.error('LinkedIn /me error:', errText);
+            continue;
+          }
+          const me = await meRes.json();
+          const author = `urn:li:person:${me.id}`;
+
+          // Publicar usando UGC (Share on LinkedIn)
+          const liRes = await fetch('https://api.linkedin.com/v2/ugcPosts', {
+            method: 'POST',
+            headers: {
+              Authorization: `Bearer ${accessToken}`,
+              'Content-Type': 'application/json',
+              'X-Restli-Protocol-Version': '2.0.0',
+            },
+            body: JSON.stringify({
+              author,
+              lifecycleState: 'PUBLISHED',
+              specificContent: {
+                'com.linkedin.ugc.ShareContent': {
+                  shareCommentary: { text: `${post.title}\n\n${post.content}` },
+                  shareMediaCategory: 'NONE',
+                },
+              },
+              visibility: { 'com.linkedin.ugc.MemberNetworkVisibility': 'PUBLIC' },
+            }),
+          });
+
+          if (!liRes.ok) {
+            const errText = await liRes.text().catch(() => '');
+            console.error(`Error al publicar en LinkedIn para el post ${post.id}:`, errText);
+            continue;
+          }
+
+          console.log(`Post ${post.id} publicado en LinkedIn`);
+        } else {
+          console.warn(`social_network desconocida "${network}" para post ${post.id}`);
           continue;
         }
 
-        const userToken = userTokenResult.rows[0].token;
-
-        // Publicar en Mastodon utilizando el token
-        const response = await fetch(`${process.env.MASTODON_API_URL}/api/v1/statuses`, {
-          method: 'POST',
-          headers: {
-            Authorization: `Bearer ${userToken}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            status: `${post.title}\n\n${post.content}`, // Combina título y contenido en un solo estado
-          }),
-        });
-
-        if (!response.ok) {
-          const error = await response.json();
-          console.error(`Error al publicar en Mastodon para el post ${post.id}:`, error);
-          continue;
-        }
-
-        console.log(`Post publicado en Mastodon: ${post.title}`);
-
-        // Actualizar estado a "publicado"
+        // 4) marcar como publicado
         await pool.query(
-          `UPDATE queue_posts SET status = 'publicado', published_at = NOW() 
-           WHERE id = $1`,
+          `UPDATE queue_posts
+              SET status = 'publicado',
+                  published_at = NOW()
+            WHERE id = $1`,
           [post.id]
         );
+
       } catch (error) {
         console.error(`Error al procesar el post ${post.id}:`, error);
       }
@@ -518,6 +586,177 @@ app.post('/mastodon/save-token', async (req, res) => {
     res.status(500).json({ error: 'Error al guardar el token' });
   }
 });
+
+// ======= LINKEDIN ========
+
+const crypto = require('crypto');
+const OAUTH_STATE_SECRET = process.env.OAUTH_STATE_SECRET;
+const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:3000';
+const LINKEDIN_CLIENT_ID = process.env.LINKEDIN_CLIENT_ID;
+const LINKEDIN_CLIENT_SECRET = process.env.LINKEDIN_CLIENT_SECRET;
+const LINKEDIN_REDIRECT_URI = process.env.LINKEDIN_REDIRECT_URI;
+const LINKEDIN_SCOPE = process.env.LINKEDIN_SCOPE || 'w_member_social openid profile';
+
+function signState(payload) {
+  // payload: { userId, nonce, ts }
+  const data = Buffer.from(JSON.stringify(payload)).toString('base64url');
+  const sig = crypto.createHmac('sha256', OAUTH_STATE_SECRET).update(data).digest('base64url');
+  return `${data}.${sig}`;
+}
+
+function verifyState(state) {
+  const [data, sig] = state.split('.');
+  const expected = crypto.createHmac('sha256', OAUTH_STATE_SECRET).update(data).digest('base64url');
+  if (sig !== expected) throw new Error('bad state signature');
+  const payload = JSON.parse(Buffer.from(data, 'base64url').toString('utf8'));
+  // opcional: caducidad (10 min)
+  if (Date.now() - (payload.ts || 0) > 10 * 60 * 1000) throw new Error('state expired');
+  return payload; // { userId, nonce, ts }
+}
+
+async function saveLinkedinToken(userId, accessToken, expiresIn, personUrn) {
+  const expiresAt = new Date(Date.now() + (expiresIn * 1000));
+  await pool.query(`
+    INSERT INTO linkedin_tokens (user_id, access_token, person_urn, expires_at, created_at, updated_at)
+    VALUES ($1,$2,$3,$4,NOW(),NOW())
+    ON CONFLICT (user_id)
+    DO UPDATE SET access_token=EXCLUDED.access_token,
+                  person_urn   =EXCLUDED.person_urn,
+                  expires_at   =EXCLUDED.expires_at,
+                  updated_at   =NOW()
+  `, [userId, accessToken, personUrn, expiresAt]);
+}
+
+async function getLinkedinCreds(userId) {
+  const r = await pool.query(`SELECT access_token, person_urn, expires_at FROM linkedin_tokens WHERE user_id=$1`, [userId]);
+  return r.rows[0]; // undefined si no existe
+}
+
+//redirige a LinkedIn 
+app.get('/api/linkedin/start', (req, res) => {
+  const { userId } = req.query;
+  if (!userId) return res.status(400).send('Missing userId');
+
+  const state = createOAuthStateFor(userId); // lo que estés usando (random + firma)
+  const authUrl = new URL('https://www.linkedin.com/oauth/v2/authorization');
+  authUrl.search = new URLSearchParams({
+    response_type: 'code',
+    client_id: process.env.LINKEDIN_CLIENT_ID,
+    redirect_uri: process.env.LINKEDIN_REDIRECT_URI,
+    scope: 'w_member_social r_liteprofile', // o lo que tengas autorizado
+    state,
+  }).toString();
+
+  return res.redirect(authUrl.toString());
+});
+
+// CALLBACK: troca code->token, guarda en BD y redirige al FE
+app.get('/linkedin/callback', async (req, res) => {
+  try {
+    const { code, state, error, error_description } = req.query;
+    if (error) return res.status(400).send(`LinkedIn error:\n${error_description || error}`);
+
+    const { userId } = verifyState(state);
+
+    // Intercambiar code por token
+    const tokenRes = await fetch('https://www.linkedin.com/oauth/v2/accessToken', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
+        grant_type: 'authorization_code',
+        code,
+        redirect_uri: LINKEDIN_REDIRECT_URI,
+        client_id: LINKEDIN_CLIENT_ID,
+        client_secret: LINKEDIN_CLIENT_SECRET
+      })
+    });
+    const tokenData = await tokenRes.json();
+    if (!tokenRes.ok) {
+      return res.status(500).send(`Token error:\n${JSON.stringify(tokenData, null, 2)}`);
+    }
+    const { access_token, expires_in } = tokenData;
+
+    // Obtener el sub (ID del miembro) con OIDC
+    const meRes = await fetch('https://api.linkedin.com/v2/userinfo', {
+      headers: { Authorization: `Bearer ${access_token}` }
+    });
+    const me = await meRes.json();
+    if (!meRes.ok || !me.sub) {
+      return res.status(500).send(`userinfo error:\n${JSON.stringify(me, null, 2)}`);
+    }
+    const personUrn = `urn:li:person:${me.sub}`;
+
+    // Guardar en BD
+    await saveLinkedinToken(userId, access_token, expires_in, personUrn);
+
+    // Redirigir al FE con estado simple (sin exponer tokens)
+    const done = new URL(`${FRONTEND_URL}/account-config`);
+    done.searchParams.set('linkedin', 'ok');
+    res.redirect(done.toString());
+  } catch (e) {
+    console.error(e);
+    res.status(400).send(`LinkedIn callback error:\n${e.message}`);
+  }
+});
+
+// Estado de conexión para el frontend 
+app.get('/api/linkedin/status', async (req, res) => {
+  try {
+    const userId = parseInt(req.query.userId, 10);
+    if (!userId) return res.status(400).json({ error: 'missing userId' });
+    const creds = await getLinkedinCreds(userId);
+    res.json({ connected: !!creds, personUrn: creds?.person_urn || null, expiresAt: creds?.expires_at || null });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: 'status failed' });
+  }
+});
+
+// Publicar en nombre del usuario logueado
+app.post('/api/linkedin/post', async (req, res) => {
+  const { userId, text, link } = req.body;
+  if (!userId || !text) return res.status(400).json({ error: 'userId y text son obligatorios' });
+
+  try {
+    const creds = await getLinkedinCreds(userId);
+    if (!creds) return res.status(400).json({ error: 'Usuario no conectado a LinkedIn' });
+
+    // Construir cuerpo del UGC
+    const body = {
+      author: creds.person_urn,
+      lifecycleState: 'PUBLISHED',
+      specificContent: {
+        'com.linkedin.ugc.ShareContent': {
+          shareCommentary: { text },
+          ...(link
+            ? { shareMediaCategory: 'ARTICLE', media: [{ status: 'READY', originalUrl: link, title: { text: 'Enlace' } }] }
+            : { shareMediaCategory: 'NONE' })
+        }
+      },
+      visibility: {
+        'com.linkedin.ugc.MemberNetworkVisibility': 'PUBLIC'
+      }
+    };
+
+    const r = await fetch('https://api.linkedin.com/v2/ugcPosts', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${creds.access_token}`,
+        'Content-Type': 'application/json',
+        'X-Restli-Protocol-Version': '2.0.0'
+      },
+      body: JSON.stringify(body)
+    });
+
+    const data = await r.json();
+    if (!r.ok) return res.status(r.status).json(data);
+    res.status(201).json(data);
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: 'Error publicando en LinkedIn' });
+  }
+});
+
 
 // Configuración del servidor
 const PORT = process.env.PORT || 3005;

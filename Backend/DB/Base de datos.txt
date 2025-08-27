@@ -43,6 +43,15 @@ CREATE TABLE mastodon_tokens (
     created_at TIMESTAMP DEFAULT NOW()
 );
 
+CREATE TABLE IF NOT EXISTS linkedin_tokens (
+  user_id       INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+  access_token  TEXT    NOT NULL,
+  person_urn    TEXT    NOT NULL, -- ej: urn:li:person:XXXXXXXX
+  expires_at    TIMESTAMPTZ NOT NULL, -- ahora + expires_in segundos
+  created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
 
 
 

@@ -10,6 +10,7 @@ import SchedulePage from "./pages/SchedulePage";
 import CreatePostPage from "./pages/CreatePostPage";
 import MastodonAuth from "./components/MastodonAuth";
 import ProtectedRoute from "./components/ProtectedRoute"; // Importa el componente de protección
+import LinkedInCallback from './pages/LinkedInCallback';
 
 const AppRoutes = () => {
     return (
@@ -19,6 +20,7 @@ const AppRoutes = () => {
                 <Route path="/" element={<Login />} />
                 <Route path="/register" element={<Register />} />
                 <Route path="/verify-otp" element={<OTPVerification />} />
+                <Route path="/linkedin/callback" element={<LinkedInCallback />} />
 
                 {/* Rutas protegidas */}
                 <Route

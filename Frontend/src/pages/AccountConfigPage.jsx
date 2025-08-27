@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import '../styles/AccountConfigPage.css';
 import BackButton from "../components/BackButton";
 import Modal from "../components/modals/ModalLoginAccounts"; // Importamos el componente Modal
+import LinkedInConnectButton from "../components/LinkedInConnectButton";
 
 const AccountConfigPage = () => {
     const [isModalOpen, setIsModalOpen] = useState(false); // Estado para el modal
@@ -19,9 +20,9 @@ const AccountConfigPage = () => {
     return (
         <div>
             <div className="container-back-button">
-                <BackButton 
-                    label="Regresar" 
-                    className="custom-back-btn" 
+                <BackButton
+                    label="Regresar"
+                    className="custom-back-btn"
                     fallbackPath="/home"
                 />
             </div>
@@ -38,10 +39,9 @@ const AccountConfigPage = () => {
                 <div className="grid-div">
                     <img src="/images/linkedin.ico" alt="Linkedin" className="div-icon" />
                     Linkedin
-                    <label className="switch">
-                        <input type="checkbox" onChange={handleCheckboxChange} />
-                        <span className="slider"></span>
-                    </label>
+                    <div style={{ marginTop: 12 }}>
+                        <LinkedInConnectButton />
+                    </div>
                 </div>
             </div>
             {/* Renderiza el modal si está abierto */}
